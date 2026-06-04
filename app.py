@@ -5,7 +5,7 @@ import os
 from rag import PodcastRAGPipeline
 import config
 from utils import get_logger
-
+from embeddings import build_vector_database
 logger = get_logger("app")
 
 # Page Configuration
@@ -152,8 +152,25 @@ st.markdown("""
 @st.cache_resource
 def initialize_pipeline() -> PodcastRAGPipeline:
     """Initialize and cache the RAG pipeline."""
-    return PodcastRAGPipeline()
 
+    try:
+        # Check if ChromaDB already exists
+        db_exists = (
+            config.CHROMA_DB_DIR.exists()
+            and len(list(config.CHROMA_DB_DIR.glob("*"))) > 0
+        )
+
+        # Auto-build vector database on first deployment
+        if not db_exists:
+            logger.info("ChromaDB not found. Building vector database...")
+            build_vector_database()
+            logger.info("Vector database built successfully.")
+
+        return PodcastRAGPipeline()
+
+    except Exception as e:
+        logger.error(f"Failed to initialize pipeline: {e}")
+        raise
 # Try to initialize the cached pipeline
 try:
     pipeline = initialize_pipeline()
